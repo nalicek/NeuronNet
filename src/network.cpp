@@ -62,6 +62,39 @@ size_t Network::random_connect(const double &mean_deg, const double &mean_streng
     return num_links;
 }
 
+std::pair<size_t, double> Network::degree(const size_t& n) const {
+	std::pair<size_t, double> deg;
+	std::vector< std::pair<size_t, double> > connections(neighbors(n));
+	
+	if(connections.empty()) {
+		deg.first = 0;
+		deg.second = 0;
+		return deg;
+	}
+	
+	size_t nb_connections(connections.size());
+	double sum_intensities(0);
+	for(auto neighbor : connections) {
+		sum_intensities += neighbor.second;
+	}
+		deg.first = nb_connections;
+		deg.second = sum_intensities;
+	return deg;
+}
+
+std::vector< std::pair<size_t, double> > Network::neighbors(const size_t& n) const {
+	std::vector< std::pair<size_t, double> > neighbors;
+	for(auto link : links) {
+		if((link.first).first == n) {
+		std::pair<size_t, double> neighbor;
+		neighbor.first = (link.first).second;
+		neighbor.second = link.second;
+		neighbors.push_back(neighbor);
+		}
+	}
+	return neighbors;
+}
+
 std::vector<double> Network::potentials() const {
     std::vector<double> vals;
     for (size_t nn=0; nn<size(); nn++)
@@ -74,6 +107,43 @@ std::vector<double> Network::recoveries() const {
     for (size_t nn=0; nn<size(); nn++)
         vals.push_back(neurons[nn].recovery());
     return vals;
+}
+
+std::set<size_t> Network::step(const std::vector<double>& thalamic_input) {
+	std::set<size_t> firing_neurons;
+	for (size_t i=0; i<size(); ++i) {
+		
+		std::vector< std::pair<size_t, double> > excitatory_firing;
+		std::vector< std::pair<size_t, double> > inhibitory_firing;
+		for(auto neighbor : neighbors(i)) {
+			if(neurons[neighbor.first].firing()) {
+				if(neurons[neighbor.first].is_inhibitory()) inhibitory_firing.push_back(neighbor);
+				else excitatory_firing.push_back(neighbor);
+			}
+		}
+		
+		double excitatory_sum(0);
+		for(auto excitator : excitatory_firing) {
+			excitatory_sum += excitator.second;
+		}
+		double inhibitory_sum(0);
+		for(auto inhibitor : inhibitory_firing) {
+			inhibitory_sum += inhibitor.second;
+		}
+		
+		int w;
+		if(neurons[i].is_inhibitory()) w=2;
+		else w=5;
+		
+		neurons[i].input(w * thalamic_input[i] + 0.5 * excitatory_sum - inhibitory_sum);
+		
+		if (neurons[i].firing()) {
+			firing_neurons.insert(i);
+			neurons[i].reset();
+		}
+		else neurons[i].step();
+	}
+	return firing_neurons;
 }
 
 void Network::print_params(std::ostream *_out) {
