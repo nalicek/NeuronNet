@@ -109,15 +109,32 @@ std::vector<double> Network::recoveries() const {
     return vals;
 }
 
+/*
+ * 1.All neuron firing : insert them (firing_neurons) then reset
+ * 2.Calculer intensité
+ * 3.Input
+ * 4.Step all neurons
+ * pbm dans neighbors ?
+ * */
+
 std::set<size_t> Network::step(const std::vector<double>& thalamic_input) {
 	std::set<size_t> firing_neurons;
+	
+	for (size_t i=0; i<size(); ++i) {
+		if (neuron(i).firing()) {
+			firing_neurons.insert(i);
+			neurons[i].reset();
+		}
+		// else neuron[i].step(); ?
+	}
+	
 	for (size_t i=0; i<size(); ++i) {
 		
 		std::vector< std::pair<size_t, double> > excitatory_firing;
 		std::vector< std::pair<size_t, double> > inhibitory_firing;
 		for(auto neighbor : neighbors(i)) {
-			if(neurons[neighbor.first].firing()) {
-				if(neurons[neighbor.first].is_inhibitory()) inhibitory_firing.push_back(neighbor);
+			if(firing_neurons.count(neighbor.first)) { 
+				if(neuron(neighbor.first).is_inhibitory()) inhibitory_firing.push_back(neighbor);
 				else excitatory_firing.push_back(neighbor);
 			}
 		}
@@ -131,18 +148,17 @@ std::set<size_t> Network::step(const std::vector<double>& thalamic_input) {
 			inhibitory_sum += inhibitor.second;
 		}
 		
-		int w;
-		if(neurons[i].is_inhibitory()) w=2;
-		else w=5;
+		int w; 
+		if(neuron(i).is_inhibitory()) w=0.4; 
+		else w=1; 
 		
-		neurons[i].input(w * thalamic_input[i] + 0.5 * excitatory_sum - inhibitory_sum);
-		
-		if (neurons[i].firing()) {
-			firing_neurons.insert(i);
-			neurons[i].reset();
-		}
-		else neurons[i].step();
+		neurons[i].input(w * thalamic_input[i] + 0.5 * excitatory_sum + inhibitory_sum);
 	}
+	
+	for(auto neuron : neurons){
+		neuron.step();
+	}
+	
 	return firing_neurons;
 }
 
