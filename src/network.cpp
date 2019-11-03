@@ -109,14 +109,6 @@ std::vector<double> Network::recoveries() const {
     return vals;
 }
 
-/*
- * 1.All neuron firing : insert them (firing_neurons) then reset
- * 2.Calculer intensité
- * 3.Input
- * 4.Step all neurons
- * pbm dans neighbors ?
- * */
-
 std::set<size_t> Network::step(const std::vector<double>& thalamic_input) {
 	std::set<size_t> firing_neurons;
 	
@@ -125,7 +117,6 @@ std::set<size_t> Network::step(const std::vector<double>& thalamic_input) {
 			firing_neurons.insert(i);
 			neurons[i].reset();
 		}
-		// else neuron[i].step(); ?
 	}
 	
 	for (size_t i=0; i<size(); ++i) {
@@ -148,17 +139,18 @@ std::set<size_t> Network::step(const std::vector<double>& thalamic_input) {
 			inhibitory_sum += inhibitor.second;
 		}
 		
-		int w; 
+		double w; 
 		if(neuron(i).is_inhibitory()) w=0.4; 
 		else w=1; 
 		
 		neurons[i].input(w * thalamic_input[i] + 0.5 * excitatory_sum + inhibitory_sum);
 	}
 	
-	for(auto neuron : neurons){
-		neuron.step();
+	for (size_t i=0; i<size(); ++i) {
+		if (not(firing_neurons.count(i))) {
+			neurons[i].step();
+		}
 	}
-	
 	return firing_neurons;
 }
 
